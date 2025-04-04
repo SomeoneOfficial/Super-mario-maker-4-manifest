@@ -2,8 +2,10 @@ const CACHE_NAME = 'Super Mario Maker 4 - benjammo-v1-manifest test';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/manifest.json',  // Add your manifest.json to the cache
   // Add other assets you want to cache
 ];
+
 
 self.addEventListener('install', event => {
   event.waitUntil(
