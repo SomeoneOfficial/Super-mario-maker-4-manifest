@@ -22,7 +22,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 /*! For license information please see scaffolding-min.js.LICENSE.txt */
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js')
+  navigator.serviceWorker.register('/sw.js')
     .then(reg => console.log("Service Worker registered!", reg))
     .catch(err => console.error("Service Worker error:", err));
 }
