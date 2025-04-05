@@ -1,68 +1,64 @@
-const CACHE_NAME = 'Super-Mario-Maker-4-v1'; // Version your cache
+const CACHE_NAME = 'Super-Mario-Maker-4-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192x192.png', // Include images that need to be cached
-  '/icon-512x512.png',
-  '/script.js',         // Ensure main JS file is cached
-  // Add any other files you want to cache
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192x192.png',
+  './icon-512x512.png',
+  './script.js',
+  // Add more files here if needed
 ];
 
-// Install event: Cache static assets
+// Install: Pre-cache assets
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
-  );
-});
-
-// Activate event: Cleanup old caches
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (!cacheWhitelist.includes(cacheName)) {
-            return caches.delete(cacheName);  // Delete old caches
-          }
-        })
-      );
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(urlsToCache);
     })
   );
+  self.skipWaiting(); // Activate worker immediately
 });
 
-// Fetch event: Serve requests from cache or fetch from network
+// Activate: Clean old caches
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames =>
+      Promise.all(
+        cacheNames.map(name => {
+          if (name !== CACHE_NAME) {
+            return caches.delete(name);
+          }
+        })
+      )
+    )
+  );
+  self.clients.claim(); // Take control of all clients
+});
+
+// Fetch: Cache-first strategy
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // If we have a cached response, return it
-        if (response) {
-          return response;
-        }
-        // Otherwise, fetch from network and cache the response
-        return fetch(event.request)
+    caches.match(event.request).then(response => {
+      return (
+        response ||
+        fetch(event.request)
           .then(networkResponse => {
-            if (networkResponse && networkResponse.status === 200) {
-              // Cache the response for future use (e.g., for manifest.json, images, etc.)
+            // Cache the new response if OK
+            if (networkResponse.status === 200) {
+              const cloned = networkResponse.clone();
               caches.open(CACHE_NAME).then(cache => {
-                cache.put(event.request, networkResponse.clone());
+                cache.put(event.request, cloned);
               });
             }
             return networkResponse;
-          });
-      })
-  );
-});
-
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      })
+          })
+          .catch(() => {
+            // Offline fallback: optional, show custom offline page
+            if (event.request.destination === 'document') {
+              return caches.match('./index.html');
+            }
+          })
+      );
+    })
   );
 });
