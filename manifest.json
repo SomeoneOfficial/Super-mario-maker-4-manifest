@@ -1,6 +1,6 @@
 {
     "name": "Super Mario Maker 4",
-    "short_name": "Mario Maker",
+    "short_name": "Super Mario",
     "description": "Super Mario Maker 4 game",
     "start_url": "/Super-mario-maker-4-manifest/",
     "display": "standalone",
