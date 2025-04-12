@@ -2,7 +2,7 @@
     "name": "Super Mario Maker 4",
     "short_name": "Super Mario",
     "description": "Super Mario Maker 4 game",
-    "start_url": "/Super-mario-maker-4-html-manifest/",
+    "start_url": "/Super-mario-maker-4-manifest/",
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
