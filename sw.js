@@ -1,4 +1,4 @@
-const CACHE_NAME = 'Super-Mario-Maker-4-v2'; // NEW name to trigger update
+const CACHE_NAME = 'Super-Mario-Maker-4-v1';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const urlsToCache = [
   './icon-192x192.png',
   './icon-512x512.png',
   './script.js',
+  // Add more files here if needed
 ];
 
 // Install: Pre-cache assets
@@ -15,7 +16,7 @@ self.addEventListener('install', event => {
       return cache.addAll(urlsToCache);
     })
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Activate worker immediately
 });
 
 // Activate: Clean old caches
@@ -31,30 +32,33 @@ self.addEventListener('activate', event => {
       )
     )
   );
-  self.clients.claim();
+  self.clients.claim(); // Take control of all clients
 });
 
-// Fetch: Network-first strategy
+// Fetch: Cache-first strategy
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response.status === 200) {
-          const cloned = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, cloned);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request).then(cached => {
-          // Fallback for offline
-          if (cached) return cached;
-          if (event.request.destination === 'document') {
-            return caches.match('./index.html');
-          }
-        });
-      })
+    caches.match(event.request).then(response => {
+      return (
+        response ||
+        fetch(event.request)
+          .then(networkResponse => {
+            // Cache the new response if OK
+            if (networkResponse.status === 200) {
+              const cloned = networkResponse.clone();
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, cloned);
+              });
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // Offline fallback: optional, show custom offline page
+            if (event.request.destination === 'document') {
+              return caches.match('./index.html');
+            }
+          })
+      );
+    })
   );
 });
