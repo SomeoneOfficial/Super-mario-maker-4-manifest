@@ -5,10 +5,10 @@ const urlsToCache = [
   './manifest.json',
   './icon-192x192.png',
   './icon-512x512.png',
-  // No script.js since it's not used
+  // './script.js' removed because it's not used
 ];
 
-// Install: Pre-cache core files
+// Install: Pre-cache assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -18,7 +18,7 @@ self.addEventListener('install', event => {
   self.skipWaiting(); // Activate worker immediately
 });
 
-// Activate: Clean up old caches
+// Activate: Clean old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames =>
@@ -31,10 +31,10 @@ self.addEventListener('activate', event => {
       )
     )
   );
-  self.clients.claim(); // Take control of pages immediately
+  self.clients.claim(); // Take control of all clients
 });
 
-// Fetch: Cache-first strategy with network fallback and safe caching
+// Fetch: Cache-first strategy with fallback and safe caching
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
@@ -44,6 +44,7 @@ self.addEventListener('fetch', event => {
           if (networkResponse.status === 200) {
             const cloned = networkResponse.clone();
             caches.open(CACHE_NAME).then(cache => {
+              // ✅ Only cache your own site's assets
               if (event.request.url.startsWith(self.location.origin)) {
                 cache.put(event.request, cloned);
               }
@@ -51,7 +52,7 @@ self.addEventListener('fetch', event => {
           }
           return networkResponse;
         }).catch(() => {
-          // Offline fallback: serve cached index.html for page requests
+          // Offline fallback for pages
           if (event.request.destination === 'document') {
             return caches.match('./index.html');
           }
