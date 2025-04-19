@@ -4,60 +4,68 @@ const urlsToCache = [
   './index.html',
   './manifest.json',
   './icon-192x192.png',
-  './icon-512x512.png',
-  // './script.js' removed because it's not used
+  './icon-512x512.png'
 ];
 
-// Install: Pre-cache assets
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(urlsToCache);
-    })
+// Install: cache core assets
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting(); // Activate worker immediately
 });
 
-// Activate: Clean old caches
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames =>
+// Activate: clean up old caches
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(names =>
       Promise.all(
-        cacheNames.map(name => {
-          if (name !== CACHE_NAME) {
-            return caches.delete(name);
-          }
-        })
+        names.map(name => name !== CACHE_NAME && caches.delete(name))
       )
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim(); // Take control of all clients
 });
 
-// Fetch: Cache-first strategy with fallback and safe caching
+// Fetch: different strategies for navigation vs. other GETs
 self.addEventListener('fetch', event => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
+
+  // 1) Navigation (page loads)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(netRes => netRes)
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // 2) Other requests (CSS, JS, images, etc.)
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return (
-        response ||
-        fetch(event.request).then(networkResponse => {
-          if (networkResponse.status === 200) {
-            const cloned = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              // ✅ Only cache your own site's assets
-              if (event.request.url.startsWith(self.location.origin)) {
-                cache.put(event.request, cloned);
-              }
-            });
+    caches.match(event.request).then(cachedRes => {
+      if (cachedRes) return cachedRes;
+
+      return fetch(event.request)
+        .then(netRes => {
+          // Only cache valid, same‑origin responses
+          if (
+            netRes.ok &&
+            new URL(event.request.url).origin === self.location.origin
+          ) {
+            const clone = netRes.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           }
-          return networkResponse;
-        }).catch(() => {
-          // Offline fallback for pages
-          if (event.request.destination === 'document') {
-            return caches.match('./index.html');
-          }
+          return netRes;
         })
-      );
+        .catch(() => {
+          // If both cache & network fail, return a simple fallback (optional)
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable'
+          });
+        });
     })
   );
 });
